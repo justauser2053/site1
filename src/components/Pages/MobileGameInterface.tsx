@@ -687,12 +687,13 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
 
           {/* Centro - Controles do Jogo */}
           <div className="flex flex-col items-center gap-1">
-            <div className="flex items-center gap-1">
+            {/* Linha superior: Salvar, Reiniciar, Mutar */}
+            <div className="flex items-center gap-2">
               {/* Botão de Salvar */}
               <button
                 onClick={saveGame}
                 disabled={showPauseScreen || showWelcomeMessage}
-                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
                   showPauseScreen || showWelcomeMessage
                     ? 'opacity-50 cursor-not-allowed' 
                     : isDark 
@@ -701,31 +702,480 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
                 }`}
                 title="Salvar Progresso"
               >
-                <span className="text-sm">💾</span>
-              </button>
-
-              {/* Botão Play/Pause */}
-              <button
-                onClick={togglePlay}
-                disabled={showWelcomeMessage}
-                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                  showWelcomeMessage
-                    ? 'opacity-50 cursor-not-allowed bg-gray-400'
-                    : gameState.isPlaying && !showPauseScreen
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                }`}
-              >
-                {gameState.isPlaying && !showPauseScreen ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                <span className="text-xs">💾</span>
               </button>
 
               {/* Botão de Reset */}
               <button
                 onClick={handleResetConfirmation}
                 disabled={showPauseScreen || showWelcomeMessage}
-                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
                   showPauseScreen || showWelcomeMessage
                     ? 'opacity-50 cursor-not-allowed' 
+                    : isDark 
+                      ? 'hover:bg-slate-800 text-orange-400' 
+                      : 'hover:bg-gray-100 text-orange-600'
+                }`}
+                title="Reiniciar Jogo"
+              >
+                <span className="text-xs">🔄</span>
+              </button>
+
+              {/* Botão de Mute */}
+              <button
+                onClick={handleMuteToggle}
+                className={`p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
+                  isDark 
+                    ? 'hover:bg-slate-800 text-blue-400' 
+                    : 'hover:bg-gray-100 text-blue-600'
+                }`}
+                title={audioSettings.isMuted ? "Ativar Som" : "Mutar Som"}
+              >
+                <span className="text-xs">{audioSettings.isMuted ? '🔇' : '🔊'}</span>
+              </button>
+            </div>
+
+            {/* Linha do meio: Botão Play/Pause */}
+            <button
+              onClick={togglePlay}
+              disabled={showWelcomeMessage}
+              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                showWelcomeMessage
+                  ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                  : gameState.isPlaying && !showPauseScreen
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+              }`}
+            >
+              {gameState.isPlaying && !showPauseScreen ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+            </button>
+            
+            {/* Linha inferior: Pontuação e Tempo */}
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3">
+                {/* Pontuação à esquerda */}
+                <div className={`text-xs font-bold transition-colors duration-300 ${
+                  isDark ? 'text-emerald-400' : 'text-emerald-600'
+                }`}>
+                  {gameState.score.toLocaleString()}
+                </div>
+                
+                {/* Horário à direita */}
+                <div className={`text-xs font-mono transition-colors duration-300 ${
+                  isDark ? 'text-emerald-400' : 'text-emerald-600'
+                }`}>
+                  {formatTime(gameState.hour, gameState.minute)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Direito - Velocidade (mais abaixo) */}
+          <div className="flex flex-col items-center gap-1">
+            {/* Espaço vazio para alinhar com os controles centrais */}
+            <div className="h-6"></div>
+            
+            {/* Botões de velocidade mais abaixo */}
+            <div className="flex flex-col gap-1">
+              {[1, 2, 4].map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => setGameSpeed(speed)}
+                  disabled={showPauseScreen || showWelcomeMessage}
+                  className={`px-2 py-1 rounded text-xs font-bold transition-all duration-200 ${
+                    showPauseScreen || showWelcomeMessage
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : gameState.gameSpeed === speed
+                        ? 'bg-emerald-500 text-white'
+                        : isDark
+                          ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Mensagem de Save */}
+      {showSaveMessage && (
+        <div className="fixed top-20 right-4 z-50">
+          <div className={`px-4 py-2 rounded-lg shadow-lg transition-all duration-300 ${
+            isDark ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">💾</span>
+              <span className="text-sm font-medium">Jogo salvo!</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="px-6 py-6 max-w-7xl mx-auto">
+        {/* Seção de Status Melhorada */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Fatores */}
+          <div className="lg:col-span-2">
+            <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 transition-colors duration-300 ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}>
+              <Heart className="w-6 h-6 text-red-400" />
+              Status de Alex
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {Object.entries(gameState.factors).map(([factor, value]) => {
+                const IconComponent = getFactorIcon(factor);
+                return (
+                  <div
+                    key={factor}
+                    className={`backdrop-blur-sm rounded-2xl p-4 border-2 transition-all duration-300 hover:scale-105 ${
+                      isDark 
+                        ? 'bg-slate-900/50 border-slate-700' 
+                        : 'bg-white/80 border-gray-200 shadow-lg'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`p-2 rounded-full ${
+                        isDark ? 'bg-slate-800' : 'bg-gray-100'
+                      }`}>
+                        <IconComponent className={`w-5 h-5 ${getFactorColor(factor, value)}`} />
+                      </div>
+                      <span className={`text-sm font-bold capitalize transition-colors duration-300 ${
+                        isDark ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {factor === 'health' ? 'Saúde' : 
+                         factor === 'sleep' ? 'Sono' :
+                         factor === 'energy' ? 'Energia' :
+                         factor === 'productivity' ? 'Produtividade' : 'Social'}
+                      </span>
+                    </div>
+                    <div className={`rounded-full h-3 mb-2 transition-colors duration-300 ${
+                      isDark ? 'bg-slate-800' : 'bg-gray-200'
+                    }`}>
+                      <div
+                        className={`h-3 rounded-full transition-all duration-500 ${getFactorBgColor(factor, value)}`}
+                        style={{ width: `${value}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-lg font-bold transition-colors duration-300 ${
+                        isDark ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {Math.round(value)}%
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        value >= 70 ? 'bg-green-100 text-green-800' :
+                        value >= 40 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {value >= 70 ? 'Ótimo' : value >= 40 ? 'Regular' : 'Baixo'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Informações do Tempo */}
+          <div>
+            <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 transition-colors duration-300 ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}>
+              <Clock className="w-6 h-6 text-blue-400" />
+              Tempo
+            </h3>
+            <div className={`backdrop-blur-sm rounded-2xl p-6 border-2 transition-colors duration-300 ${
+              isDark 
+                ? 'bg-slate-900/50 border-slate-700' 
+                : 'bg-white/80 border-gray-200 shadow-lg'
+            }`}>
+              <div className="text-center mb-4">
+                <div className={`text-3xl font-bold mb-2 transition-colors duration-300 ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {formatTime(gameState.day, gameState.hour, gameState.minute)}
+                </div>
+                <div className={`text-sm transition-colors duration-300 ${
+                  isDark ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  Desafio de 14 dias
+                </div>
+              </div>
+              
+              {/* Controles de Velocidade */}
+              <div className="flex justify-center">
+                <div className={`flex items-center gap-2 p-2 rounded-xl transition-colors duration-300 ${
+                  isDark 
+                    ? 'bg-slate-800 border border-slate-700' 
+                    : 'bg-gray-100 border border-gray-200'
+                }`}>
+                  <span className={`text-sm font-medium transition-colors duration-300 ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Velocidade:
+                  </span>
+                  {[1, 2, 4].map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => setGameState(prev => ({ ...prev, gameSpeed: speed }))}
+                      className={`px-3 py-1 rounded-lg text-sm font-bold transition-all duration-200 ${
+                        gameState.gameSpeed === speed
+                          ? 'bg-emerald-500 text-white shadow-lg'
+                          : isDark
+                            ? 'hover:bg-slate-700 text-slate-300'
+                            : 'hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {speed}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Atividade Atual */}
+        {gameState.currentActivity && (
+          <div className={`backdrop-blur-sm rounded-2xl p-6 border-2 mb-8 transition-all duration-300 ${
+            isDark 
+              ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 border-emerald-500/30' 
+              : 'bg-gradient-to-r from-emerald-100/80 to-emerald-200/60 border-emerald-400/50 shadow-lg'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                  {React.createElement(activities[gameState.currentActivity as keyof typeof activities].icon, {
+                    className: "w-6 h-6 text-emerald-400"
+                  })}
+                </div>
+                <div>
+                  <span className={`text-lg font-bold transition-colors duration-300 ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {activities[gameState.currentActivity as keyof typeof activities].name}
+                  </span>
+                  <p className={`text-sm transition-colors duration-300 ${
+                    isDark ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
+                    Em andamento...
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className={`text-2xl font-bold transition-colors duration-300 ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {Math.round((gameState.activityProgress / gameState.activityDuration) * 100)}%
+                </div>
+                <div className={`text-sm transition-colors duration-300 ${
+                  isDark ? 'text-slate-400' : 'text-gray-600'
+                }`}>
+                  {Math.round(gameState.activityDuration - gameState.activityProgress)}min restantes
+                </div>
+              </div>
+            </div>
+            <div className={`rounded-full h-4 transition-colors duration-300 ${
+              isDark ? 'bg-slate-800' : 'bg-gray-200'
+            }`}>
+              <div
+                className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-4 rounded-full transition-all duration-500 shadow-lg"
+                style={{ width: `${(gameState.activityProgress / gameState.activityDuration) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Navegação de Quartos */}
+        <div className="mb-8">
+          <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 transition-colors duration-300 ${
+            isDark ? 'text-white' : 'text-gray-900'
+          }`}>
+            <Home className="w-6 h-6 text-indigo-400" />
+            Escolha o Local
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {Object.entries(rooms).map(([roomId, room]) => {
+              const IconComponent = room.icon;
+              return (
+                <button
+                  key={roomId}
+                  onClick={() => changeRoom(roomId)}
+                  disabled={!!gameState.currentActivity}
+                  className={`p-6 rounded-2xl text-center transition-all duration-200 hover:scale-105 border-2 ${
+                    gameState.currentRoom === roomId
+                      ? `bg-gradient-to-br ${room.color} border-emerald-500 shadow-lg`
+                      : isDark
+                        ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                        : 'bg-white hover:bg-gray-50 text-gray-900 border-gray-200 shadow-lg'
+                  } ${gameState.currentActivity ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <IconComponent className={`w-8 h-8 mx-auto mb-3 ${
+                    gameState.currentRoom === roomId ? 'text-emerald-600' : 
+                    isDark ? 'text-slate-300' : 'text-gray-600'
+                  }`} />
+                  <span className={`text-sm font-bold ${
+                    gameState.currentRoom === roomId ? 'text-emerald-600' : ''
+                  }`}>
+                    {room.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Atividades do Quarto Atual */}
+        <div>
+          <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 transition-colors duration-300 ${
+            isDark ? 'text-white' : 'text-gray-900'
+          }`}>
+            <Settings className="w-6 h-6 text-purple-400" />
+            Atividades - {rooms[gameState.currentRoom as keyof typeof rooms].name}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rooms[gameState.currentRoom as keyof typeof rooms].activities.map((activityId) => {
+              const activity = activities[activityId as keyof typeof activities];
+              const isCompleted = gameState.completedActivities.includes(activityId);
+              const IconComponent = activity.icon;
+              
+              return (
+                <button
+                  key={activityId}
+                  onClick={() => startActivity(activityId)}
+                  disabled={!!gameState.currentActivity}
+                  className={`p-6 rounded-2xl text-center transition-all duration-200 hover:scale-105 border-2 relative ${
+                    gameState.currentActivity
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDark
+                        ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                        : 'bg-white hover:bg-gray-50 text-gray-900 border-gray-200 shadow-lg'
+                  } ${isCompleted ? 'ring-2 ring-emerald-500' : ''}`}
+                >
+                  {isCompleted && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                  
+                  <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                    isDark ? 'bg-slate-700' : 'bg-gray-100'
+                  }`}>
+                    <IconComponent className={`w-8 h-8 ${activity.color}`} />
+                  </div>
+                  
+                  <div className={`text-lg font-bold mb-2 transition-colors duration-300 ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {activity.name}
+                  </div>
+                  
+                  <div className={`text-sm mb-3 transition-colors duration-300 ${
+                    isDark ? 'text-slate-400' : 'text-gray-600'
+                  }`}>
+                    ⏱️ {activity.duration} minutos
+                  </div>
+                  
+                  {/* Efeitos da Atividade */}
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {Object.entries(activity.effects).map(([effect, value]) => (
+                      <span
+                        key={effect}
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          value > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {value > 0 ? '+' : ''}{value}% {
+                          effect === 'health' ? 'Saúde' : 
+                          effect === 'sleep' ? 'Sono' :
+                          effect === 'energy' ? 'Energia' :
+                          effect === 'productivity' ? 'Produtividade' : 'Social'
+                        }
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {isCompleted && (
+                    <div className="text-xs text-emerald-500 mt-2 font-bold">
+                      ✅ Concluído hoje
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Ação */}
+      {showModal.isOpen && showModal.object && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`max-w-sm w-full rounded-2xl p-6 border-2 transition-all duration-300 ${
+            isDark 
+              ? 'bg-slate-900 border-slate-700' 
+              : 'bg-white border-gray-200 shadow-2xl'
+          }`}>
+            <div className="text-center mb-6">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                isDark ? 'bg-slate-800' : 'bg-gray-100'
+              }`}>
+                <showModal.object.icon className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h3 className={`text-lg font-bold mb-2 transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                {showModal.object.action.question}
+              </h3>
+              <p className={`text-sm transition-colors duration-300 ${
+                isDark ? 'text-slate-400' : 'text-gray-600'
+              }`}>
+                Tempo necessário: {showModal.object.timeJump >= 60 
+                  ? `${Math.floor(showModal.object.timeJump / 60)}h${showModal.object.timeJump % 60 > 0 ? ` ${showModal.object.timeJump % 60}min` : ''}`
+                  : `${showModal.object.timeJump}min`
+                }
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleActionCancel}
+                className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${
+                  isDark 
+                    ? 'bg-slate-800 hover:bg-slate-700 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
+              >
+                Não
+              </button>
+              <button
+                onClick={handleActionConfirm}
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-4 rounded-xl font-bold transition-colors"
+              >
+                Sim
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem de Consequência */}
+      {showConsequence && (
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+          <div className={`max-w-xs p-4 rounded-xl shadow-lg transition-all duration-300 ${
+            isDark ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-gray-900 border border-gray-200'
+          }`}>
+            <p className="text-sm text-center">{showConsequence}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MobileGameInterface;
                     : isDark 
                       ? 'hover:bg-slate-800 text-orange-400' 
                       : 'hover:bg-gray-100 text-orange-600'
