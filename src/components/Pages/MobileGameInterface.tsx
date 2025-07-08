@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Save, RotateCcw, ChevronLeft, ChevronRight, Heart, Zap, Moon, Users, BarChart3, User, ArrowLeft, Tv, Phone, Refrigerator, ChefHat, Bed, Monitor, BookOpen, ShowerHead as Shower, Carrot as Mirror, Dumbbell, Activity, Volume2, VolumeX } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import { useProfilePicture } from '../../hooks/useProfilePicture';
@@ -57,18 +57,18 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
   
   const [gameState, setGameState] = useState<GameState>({
     day: 1,
-    hour: 8,
+    hour: 0,
     minute: 0,
     currentRoom: 0,
     isPlaying: false,
     gameSpeed: 1,
-    score: 1250,
+    score: 0,
     factors: {
-      health: 75,
-      energy: 60,
-      sleep: 45,
-      social: 80,
-      productivity: 55
+      health: 50,
+      energy: 50,
+      sleep: 50,
+      social: 50,
+      productivity: 50
     }
   });
 
@@ -80,10 +80,26 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
   }>({ isOpen: false, object: null });
   const [showConsequence, setShowConsequence] = useState<string | null>(null);
   const [showPauseScreen, setShowPauseScreen] = useState(false);
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(true);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+
+  // Carregar jogo salvo ao inicializar
+  useEffect(() => {
+    const savedGame = localStorage.getItem('dream-story-save');
+    if (savedGame) {
+      try {
+        const parsedGame = JSON.parse(savedGame);
+        setGameState(parsedGame);
+        setShowWelcomeMessage(false); // Se há jogo salvo, não mostrar boas-vindas
+      } catch (error) {
+        console.error('Erro ao carregar jogo salvo:', error);
+      }
+    }
+  }, []);
 
   // Atualizar tempo quando o jogo estiver rodando
   useEffect(() => {
-    if (!gameState.isPlaying || showPauseScreen) return;
+    if (!gameState.isPlaying || showPauseScreen || showWelcomeMessage) return;
 
     const interval = setInterval(() => {
       setGameState(prev => {
@@ -101,17 +117,28 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
           newHour = newHour % 24;
         }
 
+        // Degradação natural dos fatores
+        const newFactors = { ...prev.factors };
+        if (newMinute % 30 === 0) {
+          newFactors.energy = Math.max(0, newFactors.energy - 1);
+          newFactors.sleep = Math.max(0, newFactors.sleep - 0.5);
+          if (newHour >= 22 || newHour <= 6) {
+            newFactors.health = Math.max(0, newFactors.health - 0.5);
+          }
+        }
+
         return {
           ...prev,
           minute: newMinute,
           hour: newHour,
-          day: newDay
+          day: newDay,
+          factors: newFactors
         };
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState.isPlaying, gameState.gameSpeed, showPauseScreen]);
+  }, [gameState.isPlaying, gameState.gameSpeed, showPauseScreen, showWelcomeMessage]);
 
   const rooms = [
     { 
@@ -307,7 +334,7 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
   ];
 
   const handleRoomChange = (direction: 'prev' | 'next') => {
-    if (isTransitioning || showPauseScreen) return;
+    if (isTransitioning || showPauseScreen || showWelcomeMessage) return;
     
     playNavigationSound();
     setIsTransitioning(true);
@@ -323,6 +350,8 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
   };
 
   const togglePlay = () => {
+    if (showWelcomeMessage) return;
+    
     playButtonSound();
     if (gameState.isPlaying) {
       // Pausar o jogo
@@ -342,19 +371,32 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
   };
 
   const saveGame = () => {
-    if (showPauseScreen) return;
+    if (showPauseScreen || showWelcomeMessage) return;
     playButtonSound();
+    
+    // Salvar o estado atual do jogo
+    localStorage.setItem('dream-story-save', JSON.stringify(gameState));
+    
     setShowSaveMessage(true);
     setTimeout(() => setShowSaveMessage(false), 2000);
-    // Implementar lógica de salvamento aqui
+  };
+
+  const handleResetConfirmation = () => {
+    if (showPauseScreen || showWelcomeMessage) return;
+    playButtonSound();
+    setShowResetConfirmation(true);
   };
 
   const resetGame = () => {
-    if (showPauseScreen) return;
     playButtonSound();
+    
+    // Limpar jogo salvo
+    localStorage.removeItem('dream-story-save');
+    
+    // Resetar estado para valores iniciais
     setGameState({
       day: 1,
-      hour: 8,
+      hour: 0,
       minute: 0,
       currentRoom: 0,
       isPlaying: false,
@@ -368,17 +410,25 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
         productivity: 50
       }
     });
+    
     setShowPauseScreen(false);
+    setShowResetConfirmation(false);
+    setShowWelcomeMessage(true); // Mostrar mensagem de boas-vindas novamente
+  };
+
+  const cancelReset = () => {
+    playButtonSound();
+    setShowResetConfirmation(false);
   };
 
   const setGameSpeed = (speed: number) => {
-    if (showPauseScreen) return;
+    if (showPauseScreen || showWelcomeMessage) return;
     playButtonSound();
     setGameState(prev => ({ ...prev, gameSpeed: speed }));
   };
 
   const handleObjectClick = (object: RoomObject) => {
-    if (showPauseScreen) return;
+    if (showPauseScreen || showWelcomeMessage) return;
     
     playNavigationSound();
     
@@ -473,12 +523,108 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
     toggleMute();
   };
 
+  const handleWelcomeStart = () => {
+    playButtonSound();
+    setShowWelcomeMessage(false);
+  };
+
   const currentRoom = rooms[gameState.currentRoom];
   const currentObjects = roomObjects[gameState.currentRoom] || [];
 
   const formatTime = (hour: number, minute: number) => {
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
   };
+
+  // Modal de Boas-vindas
+  if (showWelcomeMessage) {
+    return (
+      <div className={`h-screen flex items-center justify-center px-6 transition-colors duration-300 ${
+        isDark ? 'bg-slate-950' : 'bg-gradient-to-br from-white via-emerald-50/80 to-emerald-100/60'
+      }`}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`max-w-md w-full rounded-3xl p-8 border-2 transition-all duration-300 transform scale-100 ${
+            isDark 
+              ? 'bg-gradient-to-br from-slate-900 to-slate-800 border-emerald-500/50 shadow-2xl' 
+              : 'bg-gradient-to-br from-white to-emerald-50 border-emerald-400/60 shadow-2xl'
+          }`}>
+            <div className="text-center">
+              <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse">
+                <span className="text-4xl">🌙</span>
+              </div>
+              <h2 className={`text-2xl font-bold mb-4 transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-emerald-900'
+              }`}>
+                Bem-vindo ao Dream Story!
+              </h2>
+              <p className={`text-base leading-relaxed mb-8 transition-colors duration-300 ${
+                isDark ? 'text-slate-300' : 'text-emerald-800'
+              }`}>
+                Aqui começa sua jornada rumo ao melhor sono e saúde! Faça boas escolhas e boa sorte!
+              </p>
+              <button
+                onClick={handleWelcomeStart}
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white py-4 px-8 rounded-2xl font-bold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center gap-2 mx-auto"
+              >
+                <Play className="w-5 h-5" />
+                Vamos lá!
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Modal de confirmação de reset
+  if (showResetConfirmation) {
+    return (
+      <div className={`h-screen flex items-center justify-center px-6 transition-colors duration-300 ${
+        isDark ? 'bg-slate-950' : 'bg-gradient-to-br from-white via-emerald-50/80 to-emerald-100/60'
+      }`}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`max-w-sm w-full rounded-2xl p-6 border-2 transition-all duration-300 ${
+            isDark 
+              ? 'bg-slate-900 border-slate-700' 
+              : 'bg-white border-gray-200 shadow-2xl'
+          }`}>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <RotateCcw className="w-8 h-8 text-red-400" />
+              </div>
+              <h3 className={`text-lg font-bold mb-3 transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                Tem certeza que deseja reiniciar o jogo?
+              </h3>
+              <p className={`text-sm mb-6 transition-colors duration-300 ${
+                isDark ? 'text-slate-400' : 'text-gray-600'
+              }`}>
+                Todo o progresso atual será perdido e o jogo voltará ao início.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelReset}
+                  className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${
+                    isDark 
+                      ? 'bg-slate-800 hover:bg-slate-700 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={resetGame}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-xl font-bold transition-colors"
+                >
+                  Sim
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-300 ${
@@ -541,16 +687,67 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
 
           {/* Centro - Controles do Jogo */}
           <div className="flex flex-col items-center gap-1">
-            <button
-              onClick={togglePlay}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                gameState.isPlaying && !showPauseScreen
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-              }`}
-            >
-              {gameState.isPlaying && !showPauseScreen ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Botão de Salvar */}
+              <button
+                onClick={saveGame}
+                disabled={showPauseScreen || showWelcomeMessage}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  showPauseScreen || showWelcomeMessage
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : isDark 
+                      ? 'hover:bg-slate-800 text-emerald-400' 
+                      : 'hover:bg-gray-100 text-emerald-600'
+                }`}
+                title="Salvar Progresso"
+              >
+                <span className="text-sm">💾</span>
+              </button>
+
+              {/* Botão Play/Pause */}
+              <button
+                onClick={togglePlay}
+                disabled={showWelcomeMessage}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  showWelcomeMessage
+                    ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                    : gameState.isPlaying && !showPauseScreen
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                }`}
+              >
+                {gameState.isPlaying && !showPauseScreen ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              </button>
+
+              {/* Botão de Reset */}
+              <button
+                onClick={handleResetConfirmation}
+                disabled={showPauseScreen || showWelcomeMessage}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  showPauseScreen || showWelcomeMessage
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : isDark 
+                      ? 'hover:bg-slate-800 text-orange-400' 
+                      : 'hover:bg-gray-100 text-orange-600'
+                }`}
+                title="Reiniciar Jogo"
+              >
+                <span className="text-sm">🔄</span>
+              </button>
+
+              {/* Botão de Mute */}
+              <button
+                onClick={handleMuteToggle}
+                className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  isDark 
+                    ? 'hover:bg-slate-800 text-blue-400' 
+                    : 'hover:bg-gray-100 text-blue-600'
+                }`}
+                title={audioSettings.isMuted ? "Ativar Som" : "Mutar Som"}
+              >
+                <span className="text-sm">{audioSettings.isMuted ? '🔇' : '🔊'}</span>
+              </button>
+            </div>
             
             {/* Pontuação e Tempo */}
             <div className="text-center">
@@ -573,9 +770,9 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
               <button
                 key={speed}
                 onClick={() => setGameSpeed(speed)}
-                disabled={showPauseScreen}
+                disabled={showPauseScreen || showWelcomeMessage}
                 className={`px-2 py-1 rounded text-xs font-bold transition-all duration-200 ${
-                  showPauseScreen 
+                  showPauseScreen || showWelcomeMessage
                     ? 'opacity-50 cursor-not-allowed' 
                     : gameState.gameSpeed === speed
                       ? 'bg-emerald-500 text-white'
@@ -837,48 +1034,6 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
               })}
             </div>
           </div>
-
-          {/* Controles Inferiores */}
-          <div className="flex justify-end items-center gap-2 pt-2">
-            <button
-              onClick={handleMuteToggle}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                isDark 
-                  ? 'hover:bg-slate-800 text-emerald-400' 
-                  : 'hover:bg-gray-100 text-emerald-600'
-              }`}
-              title={audioSettings.isMuted ? "Ativar Som" : "Mutar Som"}
-            >
-              {audioSettings.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
-            
-            <button
-              onClick={saveGame}
-              disabled={showPauseScreen}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                showPauseScreen 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : isDark 
-                    ? 'hover:bg-slate-800 text-emerald-400' 
-                    : 'hover:bg-gray-100 text-emerald-600'
-              }`}
-              title="Salvar Jogo"
-            >
-              <Save className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={resetGame}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${
-                isDark 
-                  ? 'hover:bg-slate-800 text-orange-400' 
-                  : 'hover:bg-gray-100 text-orange-600'
-              }`}
-              title="Resetar Jogo"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </footer>
 
@@ -951,7 +1106,7 @@ const MobileGameInterface: React.FC<MobileGameInterfaceProps> = ({ onBack }) => 
             isDark ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-white'
           }`}>
             <div className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
+              <span className="text-sm">💾</span>
               <span className="text-sm font-medium">Jogo salvo!</span>
             </div>
           </div>
